@@ -26,10 +26,14 @@ n = 60
 
 theta = 1.0                 # Time-derivative [0: Forward; 1: Backward; 0.5: Crank]
 smootime = 0.1              # length of transition time of inlet pressure, in relation to timef
-mtFact = Constant(1E-7)             # Melting time factor
-penPcm = Constant(1.0)
+mtFact = Constant(1E-7, name = 'mtFact')             # Melting time factor
+penPcm = Constant(1.0, name = 'penPcm')
 
 p = 1.0                     # penalization factor
+penFactPcm = 10.0
+penFactMet = 1.0
+ec = Constant(0.5)
+offsetMM = Constant(0.02)
 q_degree = 6                # quadrature points
 
 solver_type = "krylov"        # solver
@@ -42,7 +46,8 @@ solver_maxtol = 1e-5
 #allTimes = np.concatenate((np.linspace(0.1, 30, 12),np.linspace(31.0, 300, 67)), axis=0)
 #allTimes = np.concatenate((np.linspace(0, 30, 31),np.linspace(31, 300, 60)), axis=0)
 #allTimes = np.concatenate((np.linspace(0, 60, 30),np.linspace(62, 300, 80)), axis=0)
-allTimes = np.concatenate((np.linspace(0, 6, 3),np.linspace(8, 12, 2)), axis=0)
+allTimes = np.concatenate((np.linspace(0, 5, 20),np.linspace(6, 300, 294)), axis=0)
+#allTimes = np.concatenate((np.linspace(0, 1, 2),np.linspace(2, 3, 2)), axis=0)
 allTimes = allTimes[1:]
 
 tTol = 0.25                 # K
@@ -56,96 +61,94 @@ factorTime = 0.75
 time_disc_method = 'bdf1' # 1 - BDF1 | 2 - BDF2
 
 ##### TOM Parameters #####
-Pcmmin = Constant(0)                # minimum porosity volume allowed
-Pcmmax = Constant(1)                # maximum porosity volume allowed
+Pcmmin = Constant(0, name = 'Pcmmin')                # minimum porosity volume allowed
+Pcmmax = Constant(1, name = 'Pcmmax')                # maximum porosity volume allowed
 opit = 25                           # iterations in optimizer
-
-p = Constant(1.0)
-ecp = Constant(0.5)
 
 ####### Chart Config #######
 tIni = 233.0
 tStep = 0.01
+matModStep = 0.01
 
 ##### Results #####
 hAt = 0 # Export files with measures at specific node (0: Don't Export)
-keyres = 5.0 # Save files every [keyres] seconds
+keyres = 1.0 # Save files every [keyres] seconds
 
 #%%
 ##### Properties #####
 # Gas - Methane
-gas_cp = Constant(2450.0)       # specific heat at 300K [J/kg.K]
-gas_k = Constant(0.0343)      # thermal conductivity [W/m.K] 
-gas_mg = Constant(0.016)       # molar mass [kg/mol]
-gas_pcr = Constant(4.596e6)     # critical pressure [Pa]
-gas_tcr = Constant(150.0)      # critical temperature [K]
-gas_mu = Constant(1.25e-5)      # viscosity [Pa.s]
-gas_rhoads = Constant(422.62)    # adsorbed density [kg/m^3]
+gas_cp = Constant(2450.0, name = 'gas_cp')       # specific heat at 300K [J/kg.K]
+gas_k = Constant(0.0343, name = 'gas_k')      # thermal conductivity [W/m.K] 
+gas_mg = Constant(0.016, name = 'gas_mg')       # molar mass [kg/mol]
+gas_pcr = Constant(4.596e6, name = 'gas_pcr')     # critical pressure [Pa]
+gas_tcr = Constant(150.0, name = 'gas_tcr')      # critical temperature [K]
+gas_mu = Constant(1.25e-5, name = 'gas_mu')      # viscosity [Pa.s]
+gas_rhoads = Constant(422.62, name = 'gas_rhoads')    # adsorbed density [kg/m^3]
 
 # Adsorbent - Norit
-ads_cp = Constant(650.0)        # Adsorbent specific heat [J/kg.K]
-ads_k = Constant(0.54)          # Adsorbent thermal conductivity [W/m.K]
-ads_ws = Constant(5.8e-4)       # Adsorbent specific micropore volume [m^3/kg]
-ads_ns = Constant(1.8)          # Adsorbent micropore dispersion
+ads_cp = Constant(650.0, name = 'ads_cp')        # Adsorbent specific heat [J/kg.K]
+ads_k = Constant(0.54, name = 'ads_k')          # Adsorbent thermal conductivity [W/m.K]
+ads_ws = Constant(5.8e-4, name = 'ads_ws')       # Adsorbent specific micropore volume [m^3/kg]
+ads_ns = Constant(1.8, name = 'ads_ns')          # Adsorbent micropore dispersion
 #ads_rhos0 = Constant(1428.57)     # Adsorbent density [kg/m^3]
-ads_rhos0 = Constant(764.50)     # Xingcun Li
-ads_dps = Constant(28.3e-6)     # Adsorbent particle diameter [m]
-ads_K = Constant(3.7e-11)       # Adsorbent Permeability
-ads_emi = Constant(0.5)    # Adsorbent Microporosity
+ads_rhos0 = Constant(764.50, name = 'ads_rhos0')     # Xingcun Li
+ads_dps = Constant(28.3e-6, name = 'ads_dps')     # Adsorbent particle diameter [m]
+ads_K = Constant(3.7e-11, name = 'ads_K')       # Adsorbent Permeability
+ads_emi = Constant(0.5, name = 'ads_emi')    # Adsorbent Microporosity
 #ads_emi = Constant(0.72)    # Adsorbent Microporosity
-ads_ema = Constant(0.3)    # Adsorbent Macroporosity
+ads_ema = Constant(0.3, name = 'ads_ema')    # Adsorbent Macroporosity
 
 # Methane - Norit
-E0 = Constant(25040.60)     # characteristic energy of adsorption [J/mol]
-Ea = Constant(6000.0)       # energy of adsorption [J/mol]
-Ed = Constant(22000.0)      # energy of desorption [J/mol]
-beta = Constant(0.35)       # affinity coefficient
-DelH = Constant(-13300.0)   # reaction enthalpy [J/mol]
-DelS = Constant(-87.84)     # reaction entropy [J/mol.K]
-D = Constant(3.2)           # kinetic constant of adsorption [1/s]      
+E0 = Constant(25040.60, name = 'E0')     # characteristic energy of adsorption [J/mol]
+Ea = Constant(6000.0, name = 'Ea')       # energy of adsorption [J/mol]
+Ed = Constant(22000.0, name = 'Ed')      # energy of desorption [J/mol]
+beta = Constant(0.35, name = 'beta')       # affinity coefficient
+DelH = Constant(-13300.0, name = 'DelH')   # reaction enthalpy [J/mol]
+DelS = Constant(-87.84, name = 'DelS')     # reaction entropy [J/mol.K]
+D = Constant(3.2, name = 'D')           # kinetic constant of adsorption [1/s]      
 ModDelH = -DelH             # modulus of reaction enthalpy [J/mol] 
-Rg = Constant(8.31)         # universal gas constant [J/mol.K]
-Tb = Constant(111.2)
-alphae = Constant(2.5e-3)
-A1 = Constant(4000.0)
-B1 = Constant(1.57)
-C1 = Constant(2.4e-8)
-D1 = Constant(749.0)
-posx = Constant(340000)
-posy = Constant(-10.2)
+Rg = Constant(8.31, name = 'Rg')         # universal gas constant [J/mol.K]
+Tb = Constant(111.2, name = 'Tb')
+alphae = Constant(2.5e-3, name = 'alphae')
+A1 = Constant(4000.0, name = 'A1')
+B1 = Constant(1.57, name = 'B1')
+C1 = Constant(2.4e-8, name = 'C1')
+D1 = Constant(749.0, name = 'D1')
+posx = Constant(340000, name = 'posx')
+posy = Constant(-10.2, name = 'posy')
 
 
 # PCM - HS34
-tpc = Constant(313.0)      # phase change temperature [K]
-rhopcm = Constant(909.45)   # density [kg/m^3]
-Lat = Constant(153000.0)    # latent heat [J/kg]
-kpcms = Constant(0.460)       # thermal conductivity [W/m.K]
-kpcml = Constant(0.460)       # thermal conductivity [W/m.K]
-Cpcms = Constant(2200.0)      # specific heat - solid [J/kg.K]
-Cpcml = Constant(2200.0)      # specific heat - liquid [J/kg.K]
-epsPC = Constant(6.5)       # material model coeficient
-poropcm = Constant(0.0)     # pcm porosity
+tpc = Constant(313.0, name = 'tpc')      # phase change temperature [K]
+rhopcm = Constant(909.45, name = 'rhopcm')   # density [kg/m^3]
+Lat = Constant(153000.0, name = 'Lat')    # latent heat [J/kg]
+kpcms = Constant(0.460, name = 'kpcms')       # thermal conductivity [W/m.K]
+kpcml = Constant(0.460, name = 'kpcml')       # thermal conductivity [W/m.K]
+Cpcms = Constant(220000.0, name = 'Cpcms')      # specific heat - solid [J/kg.K]
+Cpcml = Constant(220000.0, name = 'Cpcml')      # specific heat - liquid [J/kg.K]
+epsPC = Constant(6.5, name = 'epsPC')       # material model coeficient
+poropcm = Constant(0.0, name = 'poropcm')     # pcm porosity
 
 # Copper
-kcopp = Constant(401.0)      # thermal conductivity [W/m.K]
-Ccopp = Constant(380.0)      # specific heat - solid [J/kg.K]
-rhocopp = Constant(8.954e3)  # density [kg/m^3]
+kcopp = Constant(401.0, name = 'kcopp')      # thermal conductivity [W/m.K]
+Ccopp = Constant(380.0, name = 'Ccopp')      # specific heat - solid [J/kg.K]
+rhocopp = Constant(8.954e3, name = 'rhocopp')  # density [kg/m^3]
 
 # Room
-Rg = Constant(8.31)
-troom = Constant(300.0)       # room temperature [K]
-patm = Constant(100000.0)     # atm pressure [Pa]
-hroom = Constant(700.0)    # convective coefficient [W/m^2.K] 5 or 700
-htube = Constant(400.0)     # convective coefficient for inner tubes [W/m^2.K]
-hentrada = Constant(1000.0)
-pfator = Constant(1000.0)
+Rg = Constant(8.31, name = 'Rg')
+troom = Constant(300.0, name = 'troom')       # room temperature [K]
+patm = Constant(100000.0, name = 'patm')     # atm pressure [Pa]
+hroom = Constant(700.0, name = 'hroom')    # convective coefficient [W/m^2.K] 5 or 700
+htube = Constant(400.0, name = 'htube')     # convective coefficient for inner tubes [W/m^2.K]
+hentrada = Constant(1000.0, name = 'hentrada')
+pfator = Constant(1000.0, name = 'pfator')
 
 #%%  
 # Initial Conditions
 # Adsorption
-Pini = Constant(100000)     # Initial State Pressure
-Tini = Constant(300.0)
-Rini = Constant(0.0)
+Pini = Constant(100000, name = 'Pini')     # Initial State Pressure
+Tini = Constant(300.0, name = 'Tini')
+Rini = Constant(0.0, name = 'Rini')
 
 #%%
 # Temperature Measure Points
@@ -163,9 +166,6 @@ tMP5 = Point(0.15,0.02)
 
 #%%
 # Material Distribution
-
-def me(e):
-    return (tanh(p*(e - ecp))+Constant(1.0))/Constant(2.0)
 
 #class Pcmmap(Expression):
 #    "Experimental - Porosity Map"
@@ -218,13 +218,17 @@ class copperMap(Expression):
         value[0] = 1.0 if material == 1 else 0.0        
 
 #%% Functions
+#H-Filter
+def hFe(eps, off):
+    return (tanh(penFactPcm*(eps-ec+off))+Constant(1.0))/Constant(2.0)
+
 # Epsilon t
 def epsTotal(epsmet,epspcm):
     "Total porosity"
-    return (ads_ema + (1 - ads_ema)*ads_emi)*(1-epsmet) *(1-me(epspcm))
+    return (ads_ema + (1 - ads_ema)*ads_emi)*(1-epsmet)*(1-hFe(epspcm,Constant(0.0)))
+#    return (ads_ema + (1 - ads_ema)*ads_emi)*(1-epsmet**penFactMet) *(1-epspcm**penFactPcm)
 
 # Ideal Gas Law    
-
 def adsVarCp(t):
     return (Constant(-23.37) + Constant(0.25696011)*t - Constant(0.000883376)*(t**2) + Constant(1.02349e-6)*(t**3))*Constant(1000.0)
     
@@ -232,7 +236,8 @@ def gas_rho(p,t):
     return (gas_mg*p)/(Rg*t)
     
 def Keff(epsmet,epspcm):
-    return ads_K*(1-epsmet)*(1-me(epspcm)) + Constant(1.0e-21)*epsmet + Constant(1.0e-21)*me(epspcm)
+    return ads_K*(1-epsmet)*(1-hFe(epspcm,Constant(0.0))) + Constant(1.0e-21)*epsmet + Constant(1.0e-21)*hFe(epspcm,Constant(0.0))
+#    return Constant(1.0)/((1.0/Constant(1.0e-21))+((1.0/ads_K) - (1.0/Constant(1.0e-21)))*((Constant(1.0)+penFactPcm)/(epspcm+penFactPcm))*epspcm)
 
 def rhoads_T(t):
     return gas_rhoads/(exp(alphae*(t - Tb)))
@@ -245,21 +250,21 @@ def A2(p,t):
     
 def Qeq(p,t,epsmet,epspcm):
 #    return (((C1*exp(D1/t))*(p+posx)*(A1*t**(-B1)))/(1+(C1*exp(D1/t))*(p+posx))-(posy/rhos0))*(1-eps_pcm)*(1-epsc)
-    return (rhoads_T(t) * Wf() * exp(-(A2(p,t)/(beta*E0))**ads_ns))*(1-epsmet)*(1-me(epspcm))
+    return (rhoads_T(t) * Wf(epsmet,hFe(epspcm,Constant(0.0))) * exp(-(A2(p,t)/(beta*E0))**ads_ns))
 #    return (((C1*exp(D1/t))*p*(A1*t**(-B1)))/(1+(C1*exp(D1/t))*p))*rhoads_T(t)*Wf()*(1-epsmet)*(1-epspcm)
     
-def Wf():
-    return ads_ws
+def Wf(epsmet,epspcm):
+    return ads_ws*(1-epsmet)*(1-hFe(epspcm,Constant(0.0)))
     
 def Gvar(t):
     return D * exp(-Ea/(Rg*t))
 #    return Constant(0.000032)
     
 def Ceff(q,p,t,epsmet,epspcm):
-    return ((((epsTotal(epsmet,epspcm)*gas_mg*p/(Rg*t))+(Constant(1.0-epsTotal(epsmet,epspcm)))*ads_rhos0*q)*gas_cp + (Constant(1.0-epsTotal(epsmet,epspcm))*ads_rhos0*adsVarCp(t)))*(1-epsmet)*(1-me(epspcm)))+Ccopp*rhocopp*(epsmet)+Cpcm(t)*rhopcm*(me(epspcm))
+    return ((((epsTotal(epsmet,hFe(epspcm,Constant(0.0)))*gas_mg*p/(Rg*t))+(Constant(1.0-epsTotal(epsmet,hFe(epspcm,Constant(0.0)))))*ads_rhos0*q)*gas_cp + (Constant(1.0-epsTotal(epsmet,hFe(epspcm,Constant(0.0))))*ads_rhos0*adsVarCp(t)))*(1-epsmet)*(1-hFe(epspcm,Constant(0.0))))+Ccopp*rhocopp*(epsmet)+Cpcm(t)*rhopcm*(hFe(epspcm,Constant(0.0)))
 
 def keff(epsmet,epspcm,t):
-    return ((gas_k*epsTotal(epsmet,epspcm)+(1-epsTotal(epsmet,epspcm))*ads_k)*(1-epsmet)*(1-me(epspcm)))+kcopp*(epsmet)+kpcm(t)*(me(epspcm))
+    return ((gas_k*epsTotal(epsmet,hFe(epspcm,Constant(0.0)))+(1-epsTotal(epsmet,hFe(epspcm,Constant(0.0))))*ads_k)*(1-epsmet**penFactMet)*(1-hFe(epspcm,Constant(0.0))))+kcopp*(epsmet**penFactMet)+kpcm(t)*(hFe(epspcm,Constant(0.0))*penFactPcm)
     
 #Linearized Beta Function -> Polynomial
 def linBeta(T):
@@ -277,15 +282,15 @@ def meltLim(hl,hlim):
 
 #Heat Flux for Latent            
 def heatFluxLat(T,mtime,hl,hlim,epspcm):
-    return -rhopcm * Lat * linBeta(T) * meltT(T) * sqrt(kpcml/(Cpcml*rhopcm))/sqrt(sqrt(mtime**2)+mtFact) * meltLim(hl,hlim) *me(epspcm)
+    return -rhopcm * Lat * linBeta(T) * meltT(T) * sqrt(kpcml/(Cpcml*rhopcm))/sqrt(sqrt(mtime**2)+mtFact) * meltLim(hl,hlim) *hFe(epspcm,Constant(0.0))
 
 #Storing Heat in Phase Change
 def phaseChangeStore(T,ql0,hl,hlim,dtime,mtime,epspcm):
-    return -heatFluxLat(T,mtime,hl,hlim,epspcm)*(dtime)*me(epspcm)
+    return -heatFluxLat(T,mtime,hl,hlim,hFe(epspcm,Constant(0.0)))*(dtime)*hFe(epspcm,Constant(0.0))
     
 #Melting Time
 def meltingTime(ql,T,epspcm):
-    return -((ql/(mtFact + Constant(2.0) * rhopcm * Lat * me(epspcm) * linBeta(T) * meltT(T) * sqrt(kpcms/(Cpcms*rhopcm))))**2) * meltT(T -  Constant(0.2))*penPcm
+    return -((ql/(mtFact + Constant(2.0) * rhopcm * Lat * hFe(epspcm,Constant(0.0)) * linBeta(T) * meltT(T) * sqrt(kpcms/(Cpcms*rhopcm))))**2) * meltT(T -  Constant(0.2))*penPcm
 
 #%% Phase Change Material Model
 # Phase Change Functions 
@@ -314,31 +319,31 @@ def kpcm(t):
 #%%
 ##%% Plotting 
 def plotRes(xdata,ydata,details,xlabel,ylabel,savefolder,filename):
-	# Style
-	style.use('ggplot')
-	plt.rc('text', usetex=True)
-	plt.rc('font', family='serif')
+    # Style
+    style.use('ggplot')
+    plt.rc('text', usetex=True)
+    plt.rc('font', family='serif')
 
 #	if self.D.interpolate:
 #		self.D.x_o = self.D.x
 #		self.D.x = np.linspace(self.D.x_o.min(),self.D.x_o.max(),self.D.interpstep)
 
-	fig = plt.figure()
-	for i in range(len(ydata)):
+    fig = plt.figure()
+    for i in range(len(ydata)):
 #		if self.D.interpolate:
 #			self.D.y[i] = spline(self.D.x_o, self.D.y[i], self.D.x)
 
-		plt.plot(
-			xdata, 
-			ydata[i], 
-			color = details[i]['color'], 
-			linestyle = details[i]['linestyle'], 
-			marker = details[i]['marker'], 
-			markevery = 1, 
-			markeredgecolor = 'none', 
-			label = details[i]['label']
-		)
-
+        plt.plot(
+            xdata, 
+            ydata[i], 
+            color = details[i]['color'], 
+            linestyle = details[i]['linestyle'], 
+            marker = details[i]['marker'], 
+            markevery = 1, 
+            markeredgecolor = 'none',
+            label = details[i]['label']
+        )
+      
 #	if self.D.limited_axes:
 #		plt.axis(self.D.axes_limits)
 
@@ -347,17 +352,15 @@ def plotRes(xdata,ydata,details,xlabel,ylabel,savefolder,filename):
 #		plt.axis(self.D.axes_limits)
 
 	# plt.fill_between(self.D.x, self.D.y[0], self.D.y[1], facecolor='yellow', alpha=0.5)
+        
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.legend(loc='best')
+    fig.savefig(savefolder+filename, format='eps')
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
 
-	plt.xlabel(xlabel)
-	plt.ylabel(ylabel)
-
-	plt.legend(loc='best')
-
-	fig.savefig(savefolder+filename, format='eps')
-	plt.xlabel(xlabel)
-	plt.ylabel(ylabel)
-
-	plt.legend(loc='best')
+    plt.legend(loc='best')
 
 
 class Chart:
@@ -411,10 +414,75 @@ class Chart:
 		plt.legend(loc='best')
 
 
+#%% Material Model Verification
+global outputfolder
+cwd = oslib.getcwd()
+title = "Results_Hour-" + tm.strftime("%H") +":"+ tm.strftime("%M")+":"+ tm.strftime("%S")+"_Day-"+ tm.strftime("%d")+"-"+ tm.strftime("%m")+"-"+ tm.strftime("%y")
+outputfolder = cwd + "/" + title + "/"
+oslib.mkdir(outputfolder)
+oslib.mkdir(outputfolder + 'Modelo_Material/')
+xlabel = 'Pseudo-porosity'
+y_prop1 = []    
+y_prop1.append({'marker':'None', 'label':'P1', 'linestyle':'-', 'color':'black'})
+
+#keff
+ylabel = 'Thermal Conductivity (keff)'
+plotter = []
+locplot = []
+for i in range(0,int((1.0/matModStep)+1)):
+    data = float(keff(0.0,i*matModStep,Tini))
+    plotter.append(np.array(data))
+    locplot.append(np.array(i*matModStep))
+
+plotRes(locplot,[plotter],y_prop1,xlabel,ylabel, outputfolder,"/keff.eps")
+
+#Specific Heat Capacity
+ylabel = 'Heat Capacity (Ceff)'
+plotter = []
+locplot = []
+for i in range(0,int((1.0/matModStep)+1)):
+    data = float(Ceff(0.0,Pini,Tini,0.0,i*matModStep))
+    plotter.append(np.array(data))
+    locplot.append(np.array(i*matModStep))
+
+plotRes(locplot,[plotter],y_prop1,xlabel,ylabel, outputfolder,"/Ceff.eps")
+
+#Specific Pore Volume
+ylabel = 'Specific Pore (Wf)'
+plotter = []
+locplot = []
+for i in range(0,int((1.0/matModStep)+1)):
+    data = float(Wf(0.0,i*matModStep))
+    plotter.append(np.array(data))
+    locplot.append(np.array(i*matModStep))
+
+plotRes(locplot,[plotter],y_prop1,xlabel,ylabel, outputfolder,"/Wf.eps")
+
+#Permeability
+ylabel = 'Permeability (Keff)'
+plotter = []
+locplot = []
+for i in range(0,int((1.0/matModStep)+1)):
+    data = float(Keff(0.0, i*matModStep))
+    plotter.append(np.array(data))
+    locplot.append(np.array(i*matModStep))
+
+plotRes(locplot,[plotter],y_prop1,xlabel,ylabel, outputfolder,"/Keff.eps")
+
+#hFe
+ylabel = 'Pseudo Function'
+plotter = []
+locplot = []
+for i in range(0,int((1.0/matModStep)+1)):
+    data = float(hFe(i*matModStep,0.0))
+    plotter.append(np.array(data))
+    locplot.append(np.array(i*matModStep))
+
+plotRes(locplot,[plotter],y_prop1,xlabel,ylabel, outputfolder,"/hFe.eps")
 
 #%% Mesh
 
-mesh = Mesh('LinoPCM.xml')
+#mesh = Mesh('LinoPCM.xml')
 #mesh = Mesh('LiwithPCM.xml')
 
 b1 = Rectangle(Point(0.0,0.0,0.0), Point(0.03,0.013,0.0))
@@ -422,7 +490,7 @@ b2 = Rectangle(Point(0.03,0.0,0.0), Point(0.232,0.0533,0.0))
 
 domain = b1+b2
 
-#mesh = generate_mesh(domain, 60)
+mesh = generate_mesh(domain, 40)
 #plot(mesh)
 #interactive()
 
@@ -574,9 +642,6 @@ def forward(analysis_name,epsmet,epspcm):
     
     # Functions
     
-    global t0
-    global t    
-    
     r = Function(R, name = "Densidade",annotate = True)
     h = Function(H, name = "Heat_Flux",annotate = True)
 #    w = Function(W, name = "Mix_Sp")
@@ -587,10 +652,10 @@ def forward(analysis_name,epsmet,epspcm):
     vE = TestFunction(T)
     
     # Historical Variables    
-    hsavep = Function(P,annotate = False)    # History Pressure
-    hsavet = Function(T,annotate = False)    # History Temperature
-    hsaver = Function(R,annotate = False)    # History 
-    hsaveh = Function(H,annotate = False)    # History Epsilon
+    hsavep = Function(P,  name = "hsavep",annotate = False)    # History Pressure
+    hsavet = Function(T,  name = "hsavet",annotate = False)    # History Temperature
+    hsaver = Function(R,  name = "hsaver",annotate = False)    # History 
+    hsaveh = Function(H,  name = "hsaveh",annotate = False)    # History Epsilon
 #    hsavemt = Function(C)
     
     hVolAdsGas = [] # Total Amount of Adsorbed Gas
@@ -620,7 +685,7 @@ def forward(analysis_name,epsmet,epspcm):
 #    hTP4 = []
 #    hTP5 = []
     
-    pin = Constant(patm)
+    pin = Constant(patm, name="Patm")
     d_v = dof_to_vertex_map(H)    
 
     # Initial Conditions
@@ -697,11 +762,11 @@ def forward(analysis_name,epsmet,epspcm):
     
     Ft = (
     # Energy
-    + inner(axiFact*(epsTotal(epsmet,epspcm)*gas_rho(p0,t0)*gas_cp*(t-t0)/Cdtime)*(1-epsmet)*(1-me(epspcm)),vE)*dx
-    + inner(axiFact*(gas_cp*ads_rhos0*(1-epsTotal(epsmet,epspcm))*(r)*(t-t0)/Cdtime)*(1-epsmet)*(1-me(epspcm)),vE)*dx
-    + inner(axiFact*((1-epsTotal(epsmet,epspcm))*ads_rhos0*adsVarCp(t)*(t-t0)/Cdtime)*(1-epsmet)*(1-me(epspcm)),vE)*dx
+    + inner(axiFact*(epsTotal(epsmet,epspcm)*gas_rho(p0,t0)*gas_cp*(t-t0)/Cdtime)*(1-epsmet)*(1-hFe(epspcm,Constant(0.0))),vE)*dx
+    + inner(axiFact*(gas_cp*ads_rhos0*(1-epsTotal(epsmet,epspcm))*(r)*(t-t0)/Cdtime)*(1-epsmet)*(1-hFe(epspcm,Constant(0.0))),vE)*dx
+    + inner(axiFact*((1-epsTotal(epsmet,epspcm))*ads_rhos0*adsVarCp(t)*(t-t0)/Cdtime)*(1-epsmet)*(1-hFe(epspcm,Constant(0.0))),vE)*dx
     + inner(axiFact*(Ccopp*rhocopp*(t-t0)/Cdtime)*(epsmet),vE)*dx 
-    + inner(axiFact*(Cpcm(t)*rhopcm*(t-t0)/Cdtime)*(me(epspcm)),vE)*dx
+    + inner(axiFact*(Cpcm(t)*rhopcm*(t-t0)/Cdtime)*(epspcm),vE)*dx
     
     + inner(axiFact*keff(epsmet,epspcm,t)*grad(t),grad(vE))*dx
     - inner(inner(axiFact*(gas_rho(pint,t)*gas_cp*Keff(epsmet,epspcm)/gas_mu)*grad(pint),grad(t)),vE)*dx
@@ -727,7 +792,7 @@ def forward(analysis_name,epsmet,epspcm):
     adsmass = assemble((axiFact*Constant(2.0*mt.pi)*ads_rhos0*(1 - epsTotal(epsmet,epspcm)))*dx)
     
     time = 0.0
-    adjointer.time.start(time)
+#    adjointer.time.start(time)
 #    adj_start_timestep(time=0.0)
 
     tSNumber = 0
@@ -920,11 +985,11 @@ def forward(analysis_name,epsmet,epspcm):
 
         # Updates for next timestep
         pguess.assign(project(p,P),annotate = True)
-        pguess.assign(pguess + (pguess-p0),annotate = True)
+        pguess.assign(project(pguess + (pguess-p0),P),annotate = True)
         p0.assign(project(p,P),annotate = True)
         r0.assign(r,annotate = True)
         tguess.assign(project(t,T),annotate = True)
-        tguess.assign(tguess + (tguess-t0),annotate = True)
+        tguess.assign(project(tguess + (tguess-t0),T),annotate = True)
         t0.assign(project(t,T),annotate = True)
         adsGenH0 = adsGenH
         convecHeat0 = convecHeat
@@ -936,8 +1001,8 @@ def forward(analysis_name,epsmet,epspcm):
         
         nts += 1
         
-        if time != 0.0:
-            adj_inc_timestep(time=time, finished=time==allTimes[len(allTimes)-1])
+#        if time != 0.0:
+#            adj_inc_timestep(time=time, finished=time==allTimes[len(allTimes)-1])
     
 ##    File('entlim_start.xml') << entLim
     oslib.mkdir(outputfolder +'Original/'+'Imagens'+analysis_name)
@@ -957,18 +1022,18 @@ def forward(analysis_name,epsmet,epspcm):
 #    plotRes(allTimes,hvolPlot,y_prop1,xlabel,ylabel, outputfolder +'Imagens',"/Gas_Mass.eps")
 #    
 #   Plotting Volume of gas inside the tank 
-    y_prop1 = []    
-    y_prop1.append({'marker':'None', 	'label':'Total Gas Volume', 	'linestyle':'-',  'color':'black'})
-    y_prop1.append({'marker':'None', 	'label':'Adsorbed Gas Volume', 	'linestyle':'--',  'color':'black'})
-    y_prop1.append({'marker':'None', 	'label':'Non Adsorbed Gas Volume', 	'linestyle':':',  'color':'black'})
-    hvolPlot= []
-    
-    hvolPlot.append(np.array(hVolTotGas))
-    hvolPlot.append(np.array(hVolAdsGas))
-    hvolPlot.append(np.array(hVolGasGas))
-    xlabel = 'Time [s]'
-    ylabel = 'Amount of Gas [L]'
-    plotRes(allTimes,hvolPlot,y_prop1,xlabel,ylabel, outputfolder + '/Original/' +'Imagens'+analysis_name,"/Gas_Volume.eps")
+#    y_prop1 = []    
+#    y_prop1.append({'marker':'None', 	'label':'Total Gas Volume', 	'linestyle':'-',  'color':'black'})
+#    y_prop1.append({'marker':'None', 	'label':'Adsorbed Gas Volume', 	'linestyle':'--',  'color':'black'})
+#    y_prop1.append({'marker':'None', 	'label':'Non Adsorbed Gas Volume', 	'linestyle':':',  'color':'black'})
+#    hvolPlot= []
+#    
+#    hvolPlot.append(np.array(hVolTotGas))
+#    hvolPlot.append(np.array(hVolAdsGas))
+#    hvolPlot.append(np.array(hVolGasGas))
+#    xlabel = 'Time [s]'
+#    ylabel = 'Amount of Gas [L]'
+#    plotRes(allTimes,hvolPlot,y_prop1,xlabel,ylabel, outputfolder + '/Original/' +'Imagens'+analysis_name,"/Gas_Volume.eps")
 #
 ##   Plotting Storage Capacity
 #    
@@ -1061,31 +1126,21 @@ def forward(analysis_name,epsmet,epspcm):
 
 
 if __name__ == "__main__":
-     
-    global outputfolder
-    
-    cwd = oslib.getcwd()
-    title = "Results_Hour-" + tm.strftime("%H") +":"+ tm.strftime("%M")+":"+ tm.strftime("%S")+"_Day-"+ tm.strftime("%d")+"-"+ tm.strftime("%m")+"-"+ tm.strftime("%y")
-    outputfolder = cwd + "/" + title + "/"
-    oslib.mkdir(outputfolder)
-    oslib.mkdir(outputfolder + 'Optimization/')
 
-    epspcm = Function(E,name = "PCM_Dist", annotate = False)
-    epspcm = (tanh(p*(vareps - ecp))+Constant(1.0))/Constant(2.0)
+    epspcm = Function(E,name = "PCM_Dist", annotate = True)
 #    epspcm = Function(E,model.outputfolder+"Optimizating_3p5_"+"/"+"PCM"+"_epsopt.xml",name = "PCM_Dist", annotate = True)
-    
     epsmet = Function(E, name = "Metal", annotate = True)
-    epsmet.assign(interpolate(Constant(0.0),E), annotate = False)
+    epsmet.assign(interpolate(Constant(0.0),E), annotate = True)
     epspcm.assign(interpolate(Constant(0.0),E), annotate = True)   
     
-    p,t,r = forward('Desacoplado_2D_Quadrado_Filtro',epsmet, epspcm)
-    
-    dJdnumin = Function(E, annotate = False)
+    p,t,r = forward('Desacoplado_2D_Quadrado',epsmet, epspcm)
+#    tape = get_working_tape().visualise(open_in_browser=True, launch_tensorboard=True)
+    dJdnumin = Function(E, annotate = True)
     
     # for the equations recorded on the forward run
-    adj_html(outputfolder + 'Optimization'+"/forward.html", "forward")
+#    adj_html(outputfolder + 'Optimization'+"/forward.html", "forward")
     # for the equations to be assembled on the adjoint run
-    adj_html(outputfolder + 'Optimization'+"/adjoint.html", "adjoint")  
+#    adj_html(outputfolder + 'Optimization'+"/adjoint.html", "adjoint")  
     sens = File(outputfolder+"_sensitivities.pvd")
     
 #    parameters["adjoint"]["stop_annotating"] = True
@@ -1093,19 +1148,25 @@ if __name__ == "__main__":
     controls = File(outputfolder+"control_iterations.pvd")
     a_viz = Function(E, name="ControlVisualisation")
     ob_viz = []
+    global upnum
+    upnum = 0
     def eval_cb(j, a):
+        global upnum
         a_viz.assign(a)
         ob_viz.append(j)
         controls << a_viz
         plt.plot(ob_viz)
         plot(a_viz, title = "opt", key = "Opt", input_keys="r")   
-        numpy.savetxt(outputfolder+"_Objective_Func.xml", ob_viz, delimiter='\n')
+        np.savetxt(outputfolder+"_Objective_Func.xml", ob_viz, delimiter='\n')
         File(outputfolder+"_epsopt.xml") << a_viz
+        print('Update_'+str(upnum))
+        upnum = upnum + 1
     
     Y = SpatialCoordinate(mesh)
-    success_replay = replay_dolfin(tol=0.0,stop=True)
+#    success_replay = replay_dolfin(tol=0.0,stop=True)
 
-    J = Functional(-r*Y[1]*dx*dt[FINISH_TIME])
+#    J = Functional(-r*Y[1]*dx*dt[FINISH_TIME])
+    J = assemble(-r*Y[1]*dx)
     m = Control(epspcm)
     
     # Bound constraints
@@ -1119,17 +1180,18 @@ if __name__ == "__main__":
     
 #    dJdnu = compute_gradient(J, m, forget=False)
 
-    dJdnu = compute_gradient(J, m, forget = False)
+#    dJdnu = compute_gradient(J, m, forget = False)
+    dJdnu = compute_gradient(J, m)
     A = dJdnu.vector().array()
     dJdnumin.assign(project(dJdnu/np.amin(np.absolute(A)),E,annotate=False))
     sens << dJdnumin
 #    sens << dJdnu
     
     rf = ReducedFunctional(J, m, eval_cb_post = eval_cb)
-    sens_numeric= File(outputfolder+"Numeric_Sensitivities.pvd") 
+    sens_numeric = File(outputfolder+"Numeric_Sensitivities.pvd") 
     sens_numeric << dJdnumin
+    sens_analitic = File(outputfolder+"Numeric_Analitic.pvd")
     
-    sens_analitic= File(outputfolder+"Numeric_Analitic.pvd")
     
 #    problem = MinimizationProblem(rf,  bounds=(lb,ub))
 #    parameters = { 'maximum_iterations': 20 }
@@ -1139,9 +1201,10 @@ if __name__ == "__main__":
 ##    opteps = solver.solve()
 ##    epsmet.assign(opteps)
 ##    solve = minimize(rf, method = method, tol = tol, bounds = (lb, ub), options = {"maxiter": maxiter , "disp": True})
-#    eps_opt = minimize(rf, method = 'L-BFGS-B', tol = 1e-11, bounds = (0.0, 1.0), options = {"maxiter":7 , "disp": True})    
-#    epspcm.assign(eps_opt)
-#    print('Optimisation Completed...', 1)
+    
+    eps_opt = minimize(rf, method = 'L-BFGS-B', tol = 1e-11, bounds = (0.0, 1.0), options = {"maxiter":20 , "disp": True})    
+    epspcm.assign(eps_opt)
+    print('Optimisation Completed...', 1)
 #
 #    adj_reset()
 #    p,t,r = forward('Desacoplado_2D_Quadrado_Opt',epsmet, epspcm)

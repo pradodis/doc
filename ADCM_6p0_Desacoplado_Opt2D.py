@@ -64,6 +64,7 @@ opit = 25                           # iterations in optimizer
 ####### Chart Config #######
 tIni = 233.0
 tStep = 0.01
+matModStep = 0.01
 
 ##### Results #####
 hAt = 0 # Export files with measures at specific node (0: Don't Export)
@@ -219,7 +220,6 @@ def epsTotal(epsmet,epspcm):
     return (ads_ema + (1 - ads_ema)*ads_emi)*(1-epsmet) *(1-epspcm)
 
 # Ideal Gas Law    
-
 def adsVarCp(t):
     return (Constant(-23.37) + Constant(0.25696011)*t - Constant(0.000883376)*(t**2) + Constant(1.02349e-6)*(t**3))*Constant(1000.0)
     
@@ -240,11 +240,11 @@ def A2(p,t):
     
 def Qeq(p,t,epsmet,epspcm):
 #    return (((C1*exp(D1/t))*(p+posx)*(A1*t**(-B1)))/(1+(C1*exp(D1/t))*(p+posx))-(posy/rhos0))*(1-eps_pcm)*(1-epsc)
-    return (rhoads_T(t) * Wf() * exp(-(A2(p,t)/(beta*E0))**ads_ns))*(1-epsmet)*(1-epspcm)
+    return (rhoads_T(t) * Wf(epsmet,epspcm) * exp(-(A2(p,t)/(beta*E0))**ads_ns))
 #    return (((C1*exp(D1/t))*p*(A1*t**(-B1)))/(1+(C1*exp(D1/t))*p))*rhoads_T(t)*Wf()*(1-epsmet)*(1-epspcm)
     
-def Wf():
-    return ads_ws
+def Wf(epsmet,epspcm):
+    return ads_ws*(1-epsmet)*(1-epspcm)
     
 def Gvar(t):
     return D * exp(-Ea/(Rg*t))
@@ -406,34 +406,70 @@ class Chart:
 
 #%% Material Model Verification
 global outputfolder
-
-
 cwd = oslib.getcwd()
 title = "Results_Hour-" + tm.strftime("%H") +":"+ tm.strftime("%M")+":"+ tm.strftime("%S")+"_Day-"+ tm.strftime("%d")+"-"+ tm.strftime("%m")+"-"+ tm.strftime("%y")
 outputfolder = cwd + "/" + title + "/"
 oslib.mkdir(outputfolder)
 oslib.mkdir(outputfolder + 'Modelo_Material/')
-
+xlabel = 'Pseudo-porosity'
 y_prop1 = []    
 y_prop1.append({'marker':'None', 'label':'P1', 'linestyle':'-', 'color':'black'})
+
+#keff
+ylabel = 'Thermal Conductivity (keff)'
 plotter = []
 locplot = []
-
-for i in range(1,50):
-    data = float(keff(0.0,i*0.02,300.0))
+for i in range(0,int((1.0/matModStep)+1)):
+    data = float(keff(0.0,i*matModStep,Tini))
     plotter.append(np.array(data))
-    locplot.append(np.array(i*0.02))
-
-#    hvolPlot.append(np.array(hTP2))
-#    hvolPlot.append(np.array(hTP3))
-#    hvolPlot.append(np.array(hTP4))
-#    hvolPlot.append(np.array(hTP5))
-xlabel = 'Time [s]'
-ylabel = 'Temperature [K]'
+    locplot.append(np.array(i*matModStep))
 
 plotRes(locplot,[plotter],y_prop1,xlabel,ylabel, outputfolder,"/keff.eps")
 
-a
+#Specific Heat Capacity
+ylabel = 'Heat Capacity (Ceff)'
+plotter = []
+locplot = []
+for i in range(0,int((1.0/matModStep)+1)):
+    data = float(Ceff(0.0,Pini,Tini,0.0,i*matModStep))
+    plotter.append(np.array(data))
+    locplot.append(np.array(i*matModStep))
+
+plotRes(locplot,[plotter],y_prop1,xlabel,ylabel, outputfolder,"/Ceff.eps")
+
+#Specific Pore Volume
+ylabel = 'Specific Pore (Wf)'
+plotter = []
+locplot = []
+for i in range(0,int((1.0/matModStep)+1)):
+    data = float(Wf(0.0,i*matModStep))
+    plotter.append(np.array(data))
+    locplot.append(np.array(i*matModStep))
+
+plotRes(locplot,[plotter],y_prop1,xlabel,ylabel, outputfolder,"/Wf.eps")
+
+#Permeability
+ylabel = 'Permeability (Keff)'
+plotter = []
+locplot = []
+for i in range(0,int((1.0/matModStep)+1)):
+    data = float(Keff(0.0, i*matModStep))
+    plotter.append(np.array(data))
+    locplot.append(np.array(i*matModStep))
+
+plotRes(locplot,[plotter],y_prop1,xlabel,ylabel, outputfolder,"/Keff.eps")
+
+#Permeability
+ylabel = 'Permeability (Keff)'
+plotter = []
+locplot = []
+for i in range(0,int((1.0/matModStep)+1)):
+    data = float(Keff(0.0, i*matModStep))
+    plotter.append(np.array(data))
+    locplot.append(np.array(i*matModStep))
+
+plotRes(locplot,[plotter],y_prop1,xlabel,ylabel, outputfolder,"/Keff.eps")
+
 #%% Mesh
 
 #mesh = Mesh('LinoPCM.xml')
